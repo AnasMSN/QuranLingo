@@ -1,0 +1,5 @@
+DROP TABLE IF EXISTS exercise_options;
+DROP TABLE IF EXISTS exercises;
+DROP TABLE IF EXISTS lessons;
+DROP TABLE IF EXISTS skills;
+DROP TABLE IF EXISTS courses;
