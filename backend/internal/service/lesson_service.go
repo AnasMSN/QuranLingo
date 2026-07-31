@@ -14,7 +14,9 @@ import (
 )
 
 const (
-	maxHearts          = 5
+	// MaxHearts is exported so AdminService can refill users to full without
+	// duplicating the value.
+	MaxHearts          = 5
 	heartsRefillPeriod = 4 * time.Hour
 )
 
@@ -123,7 +125,7 @@ func (s *LessonService) Submit(ctx context.Context, userID, lessonID, idempotenc
 	heartsRefillAt := user.HeartsRefillAt
 	if hearts <= 0 {
 		if heartsRefillAt != nil && now.After(*heartsRefillAt) {
-			hearts = maxHearts
+			hearts = MaxHearts
 			heartsRefillAt = nil
 		} else {
 			return nil, ErrNoHeartsRemaining

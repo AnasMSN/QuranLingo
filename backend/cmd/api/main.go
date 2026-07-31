@@ -33,15 +33,22 @@ func main() {
 	contentService := service.NewContentService(pool)
 	lessonService := service.NewLessonService(pool)
 	leaderboardService := service.NewLeaderboardService(pool)
+	adminService := service.NewAdminService(pool)
 
 	handlers := &handler.Handlers{
 		Auth:        handler.NewAuthHandler(authService, pool),
 		Content:     handler.NewContentHandler(contentService),
 		Lesson:      handler.NewLessonHandler(lessonService),
 		Leaderboard: handler.NewLeaderboardHandler(leaderboardService),
+		Admin:       handler.NewAdminHandler(adminService),
 	}
 
-	router := handler.NewRouter(handlers, authService)
+	adminAuth := handler.AdminAuth{Username: cfg.AdminUsername, PasswordHash: cfg.AdminPasswordHash}
+	if adminAuth.Username == "" || adminAuth.PasswordHash == "" {
+		log.Println("admin panel disabled: set ADMIN_USERNAME and ADMIN_PASSWORD_HASH to enable /admin")
+	}
+
+	router := handler.NewRouter(handlers, authService, adminAuth)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,

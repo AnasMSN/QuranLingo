@@ -5,9 +5,13 @@ description: Conventions and checklist for building/reviewing the QuranLingo Go 
 
 # Go backend conventions — QuranLingo
 
+## Documentation rule (read this first)
+
+Any change that affects app behavior, API contracts, gamification rules, admin capabilities, or setup steps **must update `README.md` and add a `CHANGELOG.md` entry in the same change** — not as a follow-up, not left for the user to remember. See the root `README.md`'s "Versioning & documentation process" section for the format (Keep a Changelog + SemVer) and the `/change-history` snapshot convention. This applies whether the change was requested by name or discovered incidentally while doing something else.
+
 ## Project layout (as implemented)
 
-- `cmd/api` — HTTP server entrypoint. `cmd/seed` — populates starter course content (`make backend-seed`).
+- `cmd/api` — HTTP server entrypoint. `cmd/seed` — populates course content (`make backend-seed`). `cmd/hashpassword` — prints a bcrypt hash for `ADMIN_PASSWORD_HASH` (`make backend-admin-hash password=...`).
 - `internal/config` — env loading (`godotenv` reads `backend/.env`, falls back to real env vars).
 - `internal/db` — `pgxpool` connection setup; `internal/db/migrations` — `golang-migrate` SQL files; `internal/db/seed` — course/skill/lesson/exercise seed data.
 - `internal/models` — plain structs, no ORM tags.
@@ -35,6 +39,13 @@ description: Conventions and checklist for building/reviewing the QuranLingo Go 
 - Implemented in `internal/service/auth_service.go`: JWT access token (HS256, short-lived, `golang-jwt/jwt/v5`) + opaque refresh token (32 random bytes, hex-encoded, SHA-256 hashed before storage, rotated and revoked on every use).
 - Passwords hashed with `bcrypt` (`golang.org/x/crypto/bcrypt`). Never implement custom crypto/hashing.
 - `internal/middleware/auth.go` validates the `Authorization: Bearer` header and injects the user ID into request context (`middleware.UserID(ctx)`).
+
+## Admin panel
+
+- Operator-only, server-rendered HTML at `/admin` (`internal/handler/admin_handler.go`, template embedded from `internal/handler/templates/admin.html` via `//go:embed`) — not a JSON API, so it intentionally bypasses `internal/httpx`. Gated by `internal/middleware.AdminBasicAuth` (HTTP Basic Auth, bcrypt-compared against `ADMIN_USERNAME`/`ADMIN_PASSWORD_HASH`), a completely separate auth path from user JWTs so no regular signup can ever become an admin.
+- Routes are only mounted (`router.go`) if both env vars are set — fails closed rather than mounting with an empty/guessable credential. Keep this pattern for any future admin-only capability.
+- `ADMIN_PASSWORD_HASH` contains `$` — always single-quote it in `.env`, or a shell `source` (as `backend-migrate-up`/`down` do) will expand it as positional parameters.
+- Reuse constants from `service` (e.g. `service.MaxHearts`) instead of redefining them in admin code.
 
 ## Background jobs / async
 

@@ -1,6 +1,6 @@
 .PHONY: help \
 	backend-run backend-build backend-test backend-lint backend-tidy backend-seed \
-	backend-migrate-up backend-migrate-down backend-migrate-create \
+	backend-migrate-up backend-migrate-down backend-migrate-create backend-admin-hash \
 	frontend-install frontend-start frontend-ios frontend-android frontend-test frontend-lint \
 	dev install
 
@@ -36,8 +36,11 @@ backend-migrate-down: ## Roll back the last DB migration (reads DATABASE_URL fro
 backend-migrate-create: ## Create a new migration: make backend-migrate-create name=add_users_table
 	cd $(BACKEND_DIR) && migrate create -ext sql -dir internal/db/migrations -seq $(name)
 
-backend-seed: ## Populate the database with the Arabic Basics starter course
+backend-seed: ## Populate the database with the "125 Words of the Qur'an" course
 	cd $(BACKEND_DIR) && go run ./cmd/seed
+
+backend-admin-hash: ## Print a bcrypt hash for ADMIN_PASSWORD_HASH: make backend-admin-hash password=changeme
+	cd $(BACKEND_DIR) && go run ./cmd/hashpassword "$(password)"
 
 ## --- Frontend (React Native/Expo, in ./$(FRONTEND_DIR)) ---
 

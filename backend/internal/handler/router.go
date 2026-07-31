@@ -18,9 +18,17 @@ type Handlers struct {
 	Content     *ContentHandler
 	Lesson      *LessonHandler
 	Leaderboard *LeaderboardHandler
+	Admin       *AdminHandler
 }
 
-func NewRouter(h *Handlers, authService *service.AuthService) http.Handler {
+// AdminAuth holds the operator credential the /admin panel is gated behind.
+// Both fields empty means the admin panel is not mounted at all.
+type AdminAuth struct {
+	Username     string
+	PasswordHash string
+}
+
+func NewRouter(h *Handlers, authService *service.AuthService, admin AdminAuth) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(chimw.RequestID)
@@ -58,6 +66,19 @@ func NewRouter(h *Handlers, authService *service.AuthService) http.Handler {
 			r.Post("/lessons/{id}/submit", h.Lesson.Submit)
 		})
 	})
+
+	// Operator-only admin panel — HTTP Basic Auth against a config-supplied
+	// credential, entirely separate from regular user JWT auth. Not mounted
+	// at all unless both ADMIN_USERNAME and ADMIN_PASSWORD_HASH are set.
+	if admin.Username != "" && admin.PasswordHash != "" {
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.AdminBasicAuth(admin.Username, admin.PasswordHash))
+			r.Use(httprate.LimitByIP(30, time.Minute))
+			r.Get("/admin", h.Admin.Dashboard)
+			r.Post("/admin/users/refill-all", h.Admin.RefillAll)
+			r.Post("/admin/users/{id}/refill", h.Admin.RefillOne)
+		})
+	}
 
 	return r
 }

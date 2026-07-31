@@ -7,11 +7,16 @@ description: Conventions and checklist for building/reviewing the QuranLingo Rea
 
 Lives in `mobile/` at the repo root, alongside the Go backend in `backend/`. Run it via the root `Makefile` (`make frontend-start`, `make frontend-ios`, `make frontend-android`) rather than invoking `npx expo` directly, so command entrypoints stay consistent with the backend.
 
-## Project layout
+## Documentation rule (read this first)
 
-- Expo managed workflow, TypeScript throughout — only eject to a custom dev client if a native module truly requires it.
-- Structure: `app/` or `src/` with `screens/`, `components/`, `navigation/`, `api/` (typed client), `db/` (local storage layer), `store/` (client state).
-- Screens stay thin: fetch/derive data via hooks, render via components. Keep business logic (SRS scheduling, XP display rules) out of screen components.
+Any change that affects app behavior, screens/navigation, offline sync, or setup steps **must update `README.md` and add a `CHANGELOG.md` entry in the same change** — not as a follow-up, not left for the user to remember. See the root `README.md`'s "Versioning & documentation process" section for the format (Keep a Changelog + SemVer) and the `/change-history` snapshot convention. This applies whether the change was requested by name or discovered incidentally while doing something else.
+
+## Project layout (as implemented)
+
+- Expo managed workflow (currently pinned to **SDK 54** for Expo Go compatibility — check before bumping), TypeScript throughout. Only eject to a custom dev client if a native module truly requires it.
+- `mobile/src/`: `api/` (axios client + config + secure token storage), `components/` (DuoButton, LessonNode, StatBadge), `db/` (expo-sqlite cache + offline submission queue), `hooks/` (TanStack Query hooks), `navigation/` (RootNavigator + MainTabs), `screens/`, `store/` (Zustand `authStore`), `theme/`, `types/` (hand-written mirror of the backend JSON contracts — see Networking below), `utils/`.
+- Screens stay thin: fetch/derive data via hooks, render via components. Keep business logic (lesson-flow state, XP display rules) out of screen components.
+- **Hooks-order discipline**: every hook call (`useState`, `useMemo`, etc.) must run unconditionally on every render — never after an early `return`. We've hit "Rendered more hooks than during the previous render" from this exact mistake (a `useMemo` placed after a loading-state early return in `LearnScreen.tsx`); `expo lint`'s `react-hooks/immutability` rule catches the sibling mistake (mutating state during render) but not hook-ordering violations after an early return, so review this by eye.
 
 ## State management
 
@@ -21,15 +26,15 @@ Lives in `mobile/` at the repo root, alongside the Go backend in `backend/`. Run
 ## Offline-first data layer
 
 - This is a core design constraint, not an add-on: learners use the app on commutes/low signal.
-- Cache lesson/course/exercise content locally with `expo-sqlite` (or WatermelonDB if sync complexity grows) so lessons are usable offline.
-- Queue progress events (lesson completed, exercise answered, streak tick) locally when offline; sync to the backend when connectivity returns.
-- Conflict resolution: keep it simple — server is the source of truth for XP/streak/progress; client-queued events are replayed and the server recomputes canonical state (matches the backend's "never trust client for correctness" rule). Don't try to merge conflicting client/server state on-device.
-- Every queued sync event needs a client-generated idempotency key so a retried sync can't double-award XP.
+- Implemented in `mobile/src/db/`: `database.ts` (expo-sqlite setup), `courseCache.ts` (course/lesson content cache, read on fetch failure), `submissionQueue.ts` (queued lesson submissions). `useSyncPendingSubmissions` flushes the queue on every `NetInfo` connectivity-regained event and on app start.
+- Because `GET /lessons/{id}` withholds correct answers by backend design, the client **cannot** grade a lesson locally under any circumstance — the offline path is "queue the full answer set, show a 'saved offline, will sync' result," never a locally-computed score. Don't build a local grading fallback; it would contradict the one rule the whole gamification system depends on.
+- Conflict resolution: keep it simple — server is the source of truth for XP/streak/progress; client-queued events are replayed and the server recomputes canonical state. Don't try to merge conflicting client/server state on-device.
+- Every queued sync event reuses the same client-generated `idempotency_key` created when the lesson attempt started, so a retried/replayed sync can't double-award XP even if the original request actually reached the server before the connection dropped.
 
 ## Networking
 
-- Typed API client generated from (or kept in sync with) the backend's OpenAPI spec — don't hand-write duplicate request/response types on both sides.
-- Central place for auth header injection, 401 → refresh-token flow, and retry/backoff — not scattered per-screen fetch calls.
+- `mobile/src/api/client.ts`: two axios instances — `http` (request interceptor injects the bearer token; response interceptor does single-flight refresh-on-401) and `rawHttp` (interceptor-free, used only for the `/auth/refresh` call itself, to avoid infinite recursion). `setOnAuthFailure` decouples the client from `store/authStore.ts` to avoid a circular import.
+- `mobile/src/types/api.ts` is a hand-written TypeScript mirror of the backend JSON contracts (there's no OpenAPI spec to generate from) — when a backend response shape changes, update this file in the same change.
 
 ## Auth & secure storage
 
