@@ -21,11 +21,13 @@ type Handlers struct {
 	Admin       *AdminHandler
 }
 
-// AdminAuth holds the operator credential the /admin panel is gated behind.
-// Both fields empty means the admin panel is not mounted at all.
+// AdminAuth holds the operator credential and session-signing secret the
+// /admin panel is gated behind. If any field is empty, the admin panel is
+// not mounted at all.
 type AdminAuth struct {
-	Username     string
-	PasswordHash string
+	Username      string
+	PasswordHash  string
+	SessionSecret string
 }
 
 func NewRouter(h *Handlers, authService *service.AuthService, admin AdminAuth) http.Handler {
@@ -67,16 +69,32 @@ func NewRouter(h *Handlers, authService *service.AuthService, admin AdminAuth) h
 		})
 	})
 
-	// Operator-only admin panel — HTTP Basic Auth against a config-supplied
-	// credential, entirely separate from regular user JWT auth. Not mounted
-	// at all unless both ADMIN_USERNAME and ADMIN_PASSWORD_HASH are set.
-	if admin.Username != "" && admin.PasswordHash != "" {
+	// Operator-only admin panel — its own login page + signed session cookie,
+	// entirely separate from regular user JWT auth (no admin registration
+	// flow exists; the only admin is whatever ADMIN_USERNAME/ADMIN_PASSWORD_HASH
+	// resolve to). Not mounted at all unless username, password hash, and
+	// session secret are all set.
+	if admin.Username != "" && admin.PasswordHash != "" && admin.SessionSecret != "" {
 		r.Group(func(r chi.Router) {
-			r.Use(middleware.AdminBasicAuth(admin.Username, admin.PasswordHash))
+			r.Use(httprate.LimitByIP(10, time.Minute))
+			r.Get("/admin/login", h.Admin.LoginPage)
+			r.Post("/admin/login", h.Admin.Login)
+		})
+
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.AdminSessionAuth(admin.SessionSecret, admin.Username))
 			r.Use(httprate.LimitByIP(30, time.Minute))
 			r.Get("/admin", h.Admin.Dashboard)
+			r.Post("/admin/logout", h.Admin.Logout)
 			r.Post("/admin/users/refill-all", h.Admin.RefillAll)
 			r.Post("/admin/users/{id}/refill", h.Admin.RefillOne)
+
+			r.Get("/admin/questions", h.Admin.QuestionsPage)
+			r.Post("/admin/questions/new", h.Admin.CreateQuestion)
+			r.Post("/admin/questions/import", h.Admin.ImportQuestions)
+			r.Post("/admin/questions/{id}/update", h.Admin.UpdateQuestion)
+			r.Post("/admin/questions/{id}/approve", h.Admin.ApproveQuestion)
+			r.Post("/admin/questions/{id}/delete", h.Admin.DeleteQuestion)
 		})
 	}
 

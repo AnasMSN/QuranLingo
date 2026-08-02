@@ -42,6 +42,12 @@ Any change that affects app behavior, screens/navigation, offline sync, or setup
 - **Never** store tokens in `AsyncStorage`, plain state, or anywhere unencrypted.
 - Handle refresh-token rotation transparently in the API client; on unrecoverable auth failure, force a clean logout (clear local queue/cache of anything sensitive).
 
+## Audio playback
+
+- `expo-audio` (not the deprecated `expo-av`) plays per-question pronunciation clips. `mobile/src/utils/sound.ts` exports `playAudioUrl(url?)`, an imperative `createAudioPlayer(url).play()` wrapper that tracks the currently-playing clip (releasing the previous one via `.remove()` before starting the next) so replays never overlap.
+- **A missing or unreachable `audio_url` is an expected, non-error state** (most content has no recording yet) — `playAudioUrl` fails completely silently (no thrown error, no `Alert`, no console noise beyond a swallowed catch). Never add error UI around this; it would fire constantly for perfectly normal content.
+- `LessonScreen.tsx` auto-plays `exercise.audio_url` in a `useEffect` keyed on `exercise?.id` every time a new question is shown, plus a "🔊 Hear again" button that replays on demand — both call the same `playAudioUrl` helper. The effect is placed above the loading/error early returns (see the hooks-order rule above).
+
 ## Navigation
 
 - React Navigation (stack + tab navigators). Keep deep-link routes validated server-side reachable only for authorized content (don't assume a deep link implies entitlement).

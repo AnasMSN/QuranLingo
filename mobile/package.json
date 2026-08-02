@@ -10,6 +10,7 @@
     "@tanstack/react-query": "^5.101.4",
     "axios": "^1.19.0",
     "expo": "54",
+    "expo-audio": "~1.1.1",
     "expo-secure-store": "~15.0.8",
     "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",

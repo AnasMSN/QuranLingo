@@ -21,11 +21,19 @@
     tr:last-child td { border-bottom: none; }
     .hearts-full { color: #58CC02; font-weight: 700; }
     .hearts-low { color: #FF4B4B; font-weight: 700; }
+    .header-row { display: flex; align-items: baseline; justify-content: space-between; }
+    .btn-logout { background: none; border: 1px solid #ccc; color: #666; padding: 6px 14px; font-weight: 600; font-size: 13px; }
+    .btn-logout:hover { background: #eee; }
   </style>
 </head>
 <body>
-  <h1>QuranLingo Admin</h1>
-  <p class="subtitle">{{len .Users}} registered user(s)</p>
+  <div class="header-row">
+    <h1>QuranLingo Admin</h1>
+    <form method="post" action="/admin/logout">
+      <button type="submit" class="btn-logout">Log out</button>
+    </form>
+  </div>
+  <p class="subtitle">{{len .Users}} registered user(s) &middot; <a href="/admin/questions">Manage questions</a></p>
 
   {{if .Message}}<div class="message">{{.Message}}</div>{{end}}
 

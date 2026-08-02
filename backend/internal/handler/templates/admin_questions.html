@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>QuranLingo Admin — Questions</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f7f7; color: #1a1a1a; margin: 0; padding: 24px; }
+    h1 { margin-bottom: 4px; }
+    h2 { font-size: 16px; margin: 28px 0 12px; }
+    .subtitle { color: #666; margin-top: 0; margin-bottom: 20px; }
+    a.back { color: #1CB0F6; text-decoration: none; font-weight: 600; font-size: 13px; }
+    a.back:hover { text-decoration: underline; }
+    .message { background: #d4f7dc; border: 1px solid #58CC02; color: #2b5c0e; padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; }
+    .error { background: #fde2e2; border: 1px solid #FF4B4B; color: #8a1f1f; padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; word-break: break-word; }
+    .header-row { display: flex; align-items: baseline; justify-content: space-between; }
+    .btn-logout { background: none; border: 1px solid #ccc; color: #666; padding: 6px 14px; font-weight: 600; font-size: 13px; cursor: pointer; border-radius: 8px; }
+    .btn-logout:hover { background: #eee; }
+
+    .panel { background: #fff; border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 20px; }
+    label { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #888; margin: 12px 0 4px; }
+    label:first-child { margin-top: 0; }
+    select, input[type=text], input[type=file], textarea {
+      width: 100%; box-sizing: border-box; font: inherit; font-size: 14px; padding: 8px 10px;
+      border: 2px solid #E5E5E5; border-radius: 8px; color: #3C3C3C;
+    }
+    textarea { resize: vertical; min-height: 44px; }
+    input[dir=rtl] { font-size: 20px; text-align: right; }
+    .option-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+    .option-row input[type=text] { flex: 1; }
+    .option-row input[type=checkbox] { width: 18px; height: 18px; flex-shrink: 0; }
+    .hint { color: #999; font-size: 12px; margin: 4px 0 0; }
+    .lesson-picker { display: flex; gap: 8px; align-items: flex-end; }
+    .lesson-picker > div { flex: 1; }
+    button { font: inherit; cursor: pointer; border: none; border-radius: 8px; padding: 10px 18px; font-weight: 700; }
+    .btn-primary { background: #58CC02; color: #fff; }
+    .btn-primary:hover { background: #4CAD02; }
+    .btn-secondary { background: #1CB0F6; color: #fff; }
+    .btn-secondary:hover { background: #1899D6; }
+    .btn-danger { background: none; border: 1px solid #FF4B4B; color: #FF4B4B; }
+    .btn-danger:hover { background: #FF4B4B; color: #fff; }
+    .btn-outline { background: none; border: 1px solid #ccc; color: #555; }
+    .btn-outline:hover { background: #eee; }
+    .actions-row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+    code, pre { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+    pre { background: #fafafa; border: 1px solid #eee; border-radius: 8px; padding: 10px 12px; font-size: 12px; overflow-x: auto; }
+    summary { cursor: pointer; font-size: 13px; color: #1CB0F6; font-weight: 600; margin-top: 6px; }
+
+    .drafts { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+    .draft-card { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 16px; }
+    .draft-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .badge { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; padding: 3px 8px; border-radius: 999px; }
+    .badge-draft { background: #FFF4CC; color: #8a6d00; }
+    .badge-live { background: #d4f7dc; color: #2b5c0e; }
+    .position { color: #aaa; font-size: 11px; }
+
+    /* --- Android-app-style phone preview, matching mobile/src/screens/LessonScreen.tsx --- */
+    .phone { background: #FFFFFF; border: 1px solid #E5E5E5; border-radius: 18px; padding: 18px 16px; }
+    .phone-topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .phone-close { color: #777777; font-weight: 700; }
+    .phone-progress { flex: 1; height: 10px; background: #F7F7F7; border-radius: 999px; overflow: hidden; }
+    .phone-progress-fill { height: 100%; width: 60%; background: #58CC02; }
+    .phone-prompt { font-size: 17px; font-weight: 800; color: #3C3C3C; margin: 0 0 8px; }
+    .phone-arabic { font-size: 32px; text-align: center; margin: 16px 0; color: #3C3C3C; direction: rtl; }
+    .phone-options { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+    .phone-option { border: 2px solid #E5E5E5; border-radius: 16px; padding: 12px 16px; font-size: 15px; font-weight: 600; color: #3C3C3C; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .phone-option.correct { border-color: #58CC02; background: #F0FFEA; }
+    .correct-tag { color: #58A700; font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .sound-row { display: flex; justify-content: center; margin: -8px 0 12px; }
+    .btn-sound { background: #1CB0F6; color: #fff; padding: 6px 14px; font-size: 13px; }
+    .btn-sound:hover { background: #1899D6; }
+
+    details.edit { margin-top: 14px; }
+    details.edit[open] summary { margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <div class="header-row">
+    <h1>Questions</h1>
+    <form method="post" action="/admin/logout">
+      <button type="submit" class="btn-logout">Log out</button>
+    </form>
+  </div>
+  <p class="subtitle"><a class="back" href="/admin">&larr; Back to dashboard</a> &middot; multiple-choice only — add new questions as drafts and preview them before they go live, or edit what's already published below</p>
+
+  {{if .Message}}<div class="message">{{.Message}}</div>{{end}}
+  {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+
+  <div class="panel">
+    <form method="get" action="/admin/questions" class="lesson-picker">
+      <div>
+        <label for="lesson_id">Lesson</label>
+        <select id="lesson_id" name="lesson_id" onchange="this.form.submit()">
+          {{$selected := .SelectedLesson}}
+          {{range .Lessons}}
+          <option value="{{.ID}}" {{if eq .ID $selected}}selected{{end}}>{{.Label}}</option>
+          {{else}}
+          <option value="">No lessons yet — seed the course first</option>
+          {{end}}
+        </select>
+      </div>
+      <button type="submit" class="btn-outline">Go</button>
+    </form>
+    {{if .SelectedLesson}}<p class="hint">This lesson currently has {{len .Approved}} live (approved) question(s).</p>{{end}}
+  </div>
+
+  {{if .SelectedLesson}}
+  <div class="panel">
+    <h2>Add one question</h2>
+    <form method="post" action="/admin/questions/new">
+      <input type="hidden" name="lesson_id" value="{{.SelectedLesson}}">
+      <label for="prompt">Prompt</label>
+      <input type="text" id="prompt" name="prompt" placeholder="What does &quot;...&quot; mean?" required>
+      <label for="arabic_text">Arabic text (harakat supported)</label>
+      <input type="text" id="arabic_text" name="arabic_text" dir="rtl" placeholder="اللَّه">
+      <label for="audio_url">Audio URL (optional — link to a pronunciation clip; leave blank if none recorded yet)</label>
+      <input type="text" id="audio_url" name="audio_url" placeholder="https://.../allah.mp3">
+      <label>Options (2-4 — check all that count as correct; Arabic words often have more than one valid meaning)</label>
+      {{range $i := .OptionSlots}}
+      <div class="option-row">
+        <input type="checkbox" name="correct_options" value="{{add1 $i}}" aria-label="Option {{add1 $i}} is correct">
+        <input type="text" name="option_{{add1 $i}}" placeholder="Option {{add1 $i}}{{if ge $i 2}} (optional){{end}}">
+      </div>
+      {{end}}
+      <div class="actions-row">
+        <button type="submit" class="btn-primary">Add as draft</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h2>Import from CSV</h2>
+    <form method="post" action="/admin/questions/import" enctype="multipart/form-data">
+      <input type="hidden" name="lesson_id" value="{{.SelectedLesson}}">
+      <label for="file">CSV file</label>
+      <input type="file" id="file" name="file" accept=".csv,text/csv" required>
+      <div class="actions-row">
+        <button type="submit" class="btn-secondary">Import as drafts</button>
+      </div>
+    </form>
+    <details>
+      <summary>CSV format</summary>
+      <p class="hint">Header row required. UTF-8, so Arabic with harakat pastes in as-is. <code>correct_option</code> is the 1-based <code>option_N</code> number(s) that are correct — separate more than one with <code>;</code> (e.g. <code>1;3</code>) when a word has multiple valid meanings. Leave <code>option_3</code>/<code>option_4</code> blank for a 2- or 3-option question. <code>audio_url</code> is optional — leave it blank for words with no clip recorded yet.</p>
+      <pre>prompt,arabic_text,option_1,option_2,option_3,option_4,correct_option,audio_url
+"What does ""اللَّه"" mean?",اللَّه,Allah,the Most Gracious,the Most Merciful,the Great,1,https://.../allah.mp3
+"What does ""هُوَ"" mean?",هُوَ,he,she,they,,1,
+"What does ""الْحَمْد"" mean?",الْحَمْد,all praise,thanks,praise and thanks,,1;2,</pre>
+    </details>
+  </div>
+
+  <h2>Drafts awaiting approval ({{len .Drafts}})</h2>
+  <div class="drafts">
+    {{range .Drafts}}
+    {{template "questionCard" (dict "Q" . "SelectedLesson" $.SelectedLesson "OptionSlots" $.OptionSlots "ShowApprove" true "ShowDelete" true "Badge" "Draft" "BadgeClass" "badge-draft")}}
+    {{else}}
+    <p class="hint">No draft questions for this lesson yet — add one above or import a CSV.</p>
+    {{end}}
+  </div>
+
+  <h2>Existing questions ({{len .Approved}})</h2>
+  <div class="drafts">
+    {{range .Approved}}
+    {{template "questionCard" (dict "Q" . "SelectedLesson" $.SelectedLesson "OptionSlots" $.OptionSlots "ShowApprove" false "ShowDelete" false "Badge" "Live" "BadgeClass" "badge-live")}}
+    {{else}}
+    <p class="hint">No approved questions for this lesson yet.</p>
+    {{end}}
+  </div>
+  {{end}}
+</body>
+</html>
+
+{{define "questionCard"}}
+<div class="draft-card">
+  <div class="draft-meta">
+    <span class="badge {{.BadgeClass}}">{{.Badge}}</span>
+    <span class="position">position {{.Q.Exercise.Position}}</span>
+  </div>
+
+  <div class="phone">
+    <div class="phone-topbar">
+      <span class="phone-close">&times;</span>
+      <div class="phone-progress"><div class="phone-progress-fill"></div></div>
+      <span>&#10084;&#65039;</span>
+    </div>
+    <p class="phone-prompt">{{.Q.Exercise.Prompt}}</p>
+    {{if .Q.Exercise.ArabicText}}<p class="phone-arabic">{{.Q.Exercise.ArabicText}}</p>{{end}}
+    {{if .Q.Exercise.AudioURL}}
+    <div class="sound-row">
+      <audio class="q-audio" src="{{.Q.Exercise.AudioURL}}" preload="none"></audio>
+      <button type="button" class="btn-sound" onclick="var a=this.previousElementSibling;a.currentTime=0;a.play().catch(function(){});">&#128266; Play sound</button>
+    </div>
+    {{end}}
+    <div class="phone-options">
+      {{range .Q.Options}}
+      <div class="phone-option {{if .IsCorrect}}correct{{end}}">
+        <span>{{.OptionText}}</span>
+        {{if .IsCorrect}}<span class="correct-tag">&#10003; correct (visible to you only)</span>{{end}}
+      </div>
+      {{end}}
+    </div>
+  </div>
+
+  {{if or .ShowApprove .ShowDelete}}
+  <div class="actions-row">
+    {{if .ShowApprove}}
+    <form method="post" action="/admin/questions/{{.Q.Exercise.ID}}/approve">
+      <input type="hidden" name="lesson_id" value="{{.SelectedLesson}}">
+      <button type="submit" class="btn-primary">Approve</button>
+    </form>
+    {{end}}
+    {{if .ShowDelete}}
+    <form method="post" action="/admin/questions/{{.Q.Exercise.ID}}/delete" onsubmit="return confirm('Delete this draft question?');">
+      <input type="hidden" name="lesson_id" value="{{.SelectedLesson}}">
+      <button type="submit" class="btn-danger">Delete</button>
+    </form>
+    {{end}}
+  </div>
+  {{end}}
+
+  <details class="edit">
+    <summary>Edit</summary>
+    <form method="post" action="/admin/questions/{{.Q.Exercise.ID}}/update">
+      <input type="hidden" name="lesson_id" value="{{.SelectedLesson}}">
+      <label>Prompt</label>
+      <input type="text" name="prompt" value="{{.Q.Exercise.Prompt}}" required>
+      <label>Arabic text</label>
+      <input type="text" name="arabic_text" dir="rtl" value="{{.Q.Exercise.ArabicText}}">
+      <label>Audio URL (optional)</label>
+      <input type="text" name="audio_url" value="{{.Q.Exercise.AudioURL}}" placeholder="https://.../allah.mp3">
+      <label>Options (2-4 — check all that count as correct)</label>
+      {{range $i := .OptionSlots}}
+      {{$opt := optionAt $.Q.Options $i}}
+      <div class="option-row">
+        <input type="checkbox" name="correct_options" value="{{add1 $i}}" {{if $opt.IsCorrect}}checked{{end}}>
+        <input type="text" name="option_{{add1 $i}}" value="{{$opt.OptionText}}" placeholder="Option {{add1 $i}}{{if ge $i 2}} (optional){{end}}">
+      </div>
+      {{end}}
+      <div class="actions-row">
+        <button type="submit" class="btn-outline">Save changes</button>
+      </div>
+    </form>
+  </details>
+</div>
+{{end}}

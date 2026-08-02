@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -37,7 +36,6 @@ func NewLessonService(db *pgxpool.Pool) *LessonService {
 type AnswerInput struct {
 	ExerciseID string `json:"exercise_id"`
 	OptionID   string `json:"option_id,omitempty"`
-	TextAnswer string `json:"text_answer,omitempty"`
 }
 
 type ExerciseResult struct {
@@ -135,7 +133,7 @@ func (s *LessonService) Submit(ctx context.Context, userID, lessonID, idempotenc
 	results := make([]ExerciseResult, 0, len(exercises))
 	correctCount := 0
 	for _, e := range exercises {
-		correct := gradeAnswer(e, answerByExercise[e.ID], optionsByExercise[e.ID])
+		correct := gradeAnswer(answerByExercise[e.ID], optionsByExercise[e.ID])
 		if correct {
 			correctCount++
 		}
@@ -217,27 +215,19 @@ func (s *LessonService) Submit(ctx context.Context, userID, lessonID, idempotenc
 	}, nil
 }
 
-func gradeAnswer(e models.Exercise, ans AnswerInput, options []models.ExerciseOption) bool {
-	switch e.Type {
-	case models.ExerciseMultipleChoice:
-		if ans.OptionID == "" {
-			return false
-		}
-		for _, o := range options {
-			if o.ID == ans.OptionID {
-				return o.IsCorrect
-			}
-		}
-		return false
-	case models.ExerciseTranslate:
-		return normalizeAnswer(ans.TextAnswer) == normalizeAnswer(e.CorrectAnswer)
-	default:
+// gradeAnswer grades a multiple-choice answer — the only exercise type the
+// app supports. An option is correct only if it matches one of the
+// exercise's own options and that option is flagged is_correct in the DB.
+func gradeAnswer(ans AnswerInput, options []models.ExerciseOption) bool {
+	if ans.OptionID == "" {
 		return false
 	}
-}
-
-func normalizeAnswer(s string) string {
-	return strings.ToLower(strings.Join(strings.Fields(s), " "))
+	for _, o := range options {
+		if o.ID == ans.OptionID {
+			return o.IsCorrect
+		}
+	}
+	return false
 }
 
 func nextStreak(lastActivityDate *time.Time, today time.Time, currentStreak, longestStreak int) (int, int) {

@@ -50,7 +50,8 @@ export interface CourseTree {
   skills: SkillNode[];
 }
 
-export type ExerciseType = 'multiple_choice' | 'translate';
+// The app only ever supports multiple-choice questions.
+export type ExerciseType = 'multiple_choice';
 
 export interface ExerciseOptionDTO {
   id: string;
@@ -62,6 +63,7 @@ export interface ExerciseDTO {
   type: ExerciseType;
   prompt: string;
   arabic_text?: string;
+  audio_url?: string;
   options?: ExerciseOptionDTO[];
 }
 
@@ -75,7 +77,6 @@ export interface LessonDetail {
 export interface AnswerInput {
   exercise_id: string;
   option_id?: string;
-  text_answer?: string;
 }
 
 export interface ExerciseResult {

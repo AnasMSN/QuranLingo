@@ -1,6 +1,6 @@
 .PHONY: help \
 	backend-run backend-build backend-test backend-lint backend-tidy backend-seed \
-	backend-migrate-up backend-migrate-down backend-migrate-create backend-admin-hash \
+	backend-migrate-up backend-migrate-down backend-migrate-create backend-admin-hash backend-admin-secret \
 	frontend-install frontend-start frontend-ios frontend-android frontend-test frontend-lint \
 	dev install
 
@@ -41,6 +41,9 @@ backend-seed: ## Populate the database with the "125 Words of the Qur'an" course
 
 backend-admin-hash: ## Print a bcrypt hash for ADMIN_PASSWORD_HASH: make backend-admin-hash password=changeme
 	cd $(BACKEND_DIR) && go run ./cmd/hashpassword "$(password)"
+
+backend-admin-secret: ## Print a random hex secret for ADMIN_SESSION_SECRET
+	@openssl rand -hex 32
 
 ## --- Frontend (React Native/Expo, in ./$(FRONTEND_DIR)) ---
 

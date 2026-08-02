@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
@@ -11,6 +11,7 @@ import { enqueueSubmission } from '../db/submissionQueue';
 import { useAuthStore } from '../store/authStore';
 import { colors, radii } from '../theme/colors';
 import { generateId } from '../utils/id';
+import { playAudioUrl } from '../utils/sound';
 import type { AnswerInput } from '../types/api';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -28,18 +29,20 @@ export function LessonScreen({ route, navigation }: Props) {
 
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, AnswerInput>>({});
-  const [textDraft, setTextDraft] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const exercise = lesson?.exercises[index];
   const total = lesson?.exercises.length ?? 0;
   const currentAnswer = exercise ? answers[exercise.id] : undefined;
 
-  const canContinue = useMemo(() => {
-    if (!exercise) return false;
-    if (exercise.type === 'multiple_choice') return !!currentAnswer?.option_id;
-    return textDraft.trim().length > 0;
-  }, [exercise, currentAnswer, textDraft]);
+  const canContinue = useMemo(() => !!currentAnswer?.option_id, [currentAnswer]);
+
+  // Play the word's pronunciation every time a new question is shown. A
+  // missing/unreachable clip is expected for content with no recording yet,
+  // so playAudioUrl fails silently rather than surfacing an error here.
+  useEffect(() => {
+    playAudioUrl(exercise?.audio_url);
+  }, [exercise?.id, exercise?.audio_url]);
 
   if (isLoading) {
     return (
@@ -66,19 +69,12 @@ export function LessonScreen({ route, navigation }: Props) {
   const onContinue = async () => {
     if (!exercise) return;
 
-    let nextAnswers = answers;
-    if (exercise.type === 'translate') {
-      nextAnswers = { ...answers, [exercise.id]: { exercise_id: exercise.id, text_answer: textDraft.trim() } };
-      setAnswers(nextAnswers);
-    }
-
     if (index + 1 < total) {
       setIndex(index + 1);
-      setTextDraft('');
       return;
     }
 
-    await finishLesson(nextAnswers);
+    await finishLesson(answers);
   };
 
   const finishLesson = async (finalAnswers: Record<string, AnswerInput>) => {
@@ -130,32 +126,31 @@ export function LessonScreen({ route, navigation }: Props) {
       <View style={styles.body}>
         <Text style={styles.prompt}>{exercise!.prompt}</Text>
         {exercise!.arabic_text ? <Text style={styles.arabic}>{exercise!.arabic_text}</Text> : null}
+        {exercise!.audio_url ? (
+          <Pressable
+            onPress={() => playAudioUrl(exercise!.audio_url)}
+            style={styles.soundButton}
+            hitSlop={12}
+            accessibilityLabel="Play pronunciation"
+          >
+            <Text style={styles.soundButtonText}>🔊 Hear again</Text>
+          </Pressable>
+        ) : null}
 
-        {exercise!.type === 'multiple_choice' ? (
-          <View style={styles.options}>
-            {exercise!.options?.map((opt) => {
-              const selected = currentAnswer?.option_id === opt.id;
-              return (
-                <Pressable
-                  key={opt.id}
-                  onPress={() => selectOption(opt.id)}
-                  style={[styles.option, selected && styles.optionSelected]}
-                >
-                  <Text style={[styles.optionText, selected && styles.optionTextSelected]}>{opt.option_text}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        ) : (
-          <TextInput
-            style={styles.textInput}
-            placeholder="Type your answer"
-            value={textDraft}
-            onChangeText={setTextDraft}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-        )}
+        <View style={styles.options}>
+          {exercise!.options?.map((opt) => {
+            const selected = currentAnswer?.option_id === opt.id;
+            return (
+              <Pressable
+                key={opt.id}
+                onPress={() => selectOption(opt.id)}
+                style={[styles.option, selected && styles.optionSelected]}
+              >
+                <Text style={[styles.optionText, selected && styles.optionTextSelected]}>{opt.option_text}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       <DuoButton
@@ -181,6 +176,15 @@ const styles = StyleSheet.create({
   body: { flex: 1 },
   prompt: { fontSize: 20, fontWeight: '800', color: colors.text, marginBottom: 12 },
   arabic: { fontSize: 40, textAlign: 'center', marginVertical: 24, color: colors.text },
+  soundButton: {
+    alignSelf: 'center',
+    backgroundColor: colors.bgMuted,
+    borderRadius: radii.pill,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  soundButtonText: { fontSize: 14, fontWeight: '700', color: colors.blueDark },
   options: { gap: 12, marginTop: 12 },
   option: {
     borderWidth: 2,
@@ -192,15 +196,5 @@ const styles = StyleSheet.create({
   optionSelected: { borderColor: colors.blue, backgroundColor: '#DDF4FF' },
   optionText: { fontSize: 16, fontWeight: '600', color: colors.text },
   optionTextSelected: { color: colors.blueDark },
-  textInput: {
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    paddingHorizontal: 16,
-    height: 56,
-    fontSize: 18,
-    marginTop: 12,
-    color: colors.text,
-  },
   continueButton: { marginBottom: 24 },
 });

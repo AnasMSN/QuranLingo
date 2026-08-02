@@ -33,29 +33,17 @@ func Run(ctx context.Context, q repository.Querier) error {
 		}
 
 		for i, w := range skill.Words {
-			var (
-				exType models.ExerciseType
-				prompt string
-			)
-			if i%2 == 0 {
-				exType = models.ExerciseMultipleChoice
-				prompt = fmt.Sprintf("What does %q mean?", w.Arabic)
-			} else {
-				exType = models.ExerciseTranslate
-				prompt = fmt.Sprintf("Type the English translation of %q", w.Arabic)
-			}
+			prompt := fmt.Sprintf("What does %q mean?", w.Arabic)
 
-			exercise, err := repository.UpsertExercise(ctx, q, lesson.ID, exType, prompt, w.Arabic, w.English, i)
+			exercise, err := repository.UpsertExercise(ctx, q, lesson.ID, models.ExerciseMultipleChoice, prompt, w.Arabic, w.English, i)
 			if err != nil {
 				return fmt.Errorf("upsert exercise %d for skill %s: %w", i, skill.Code, err)
 			}
 
-			if exType == models.ExerciseMultipleChoice {
-				options := optionsFor(i, w.English, english, 4)
-				for optPos, opt := range options {
-					if err := repository.UpsertExerciseOption(ctx, q, exercise.ID, opt, opt == w.English, optPos); err != nil {
-						return fmt.Errorf("upsert option %d for exercise %d: %w", optPos, i, err)
-					}
+			options := optionsFor(i, w.English, english, 4)
+			for optPos, opt := range options {
+				if err := repository.UpsertExerciseOption(ctx, q, exercise.ID, opt, opt == w.English, optPos); err != nil {
+					return fmt.Errorf("upsert option %d for exercise %d: %w", optPos, i, err)
 				}
 			}
 		}

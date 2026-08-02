@@ -19,12 +19,14 @@ type Config struct {
 	AccessTTL        time.Duration
 	RefreshTTL       time.Duration
 
-	// AdminUsername/AdminPasswordHash gate the server-rendered /admin panel
-	// behind HTTP Basic Auth. Both are optional: if either is empty, the
-	// admin panel is not mounted at all (fails closed rather than mounting
-	// with an empty/guessable credential).
-	AdminUsername     string
-	AdminPasswordHash string
+	// AdminUsername/AdminPasswordHash/AdminSessionSecret gate the
+	// server-rendered /admin panel behind a signed-cookie session issued by
+	// its own login page. All three are optional together: if any is empty,
+	// the admin panel is not mounted at all (fails closed rather than
+	// mounting with an empty/guessable credential or session key).
+	AdminUsername      string
+	AdminPasswordHash  string
+	AdminSessionSecret string
 }
 
 // Load reads backend/.env (if present) and environment variables into a Config.
@@ -39,8 +41,9 @@ func Load() (*Config, error) {
 		JWTAccessSecret:  os.Getenv("JWT_ACCESS_SECRET"),
 		JWTRefreshSecret: os.Getenv("JWT_REFRESH_SECRET"),
 
-		AdminUsername:     os.Getenv("ADMIN_USERNAME"),
-		AdminPasswordHash: os.Getenv("ADMIN_PASSWORD_HASH"),
+		AdminUsername:      os.Getenv("ADMIN_USERNAME"),
+		AdminPasswordHash:  os.Getenv("ADMIN_PASSWORD_HASH"),
+		AdminSessionSecret: os.Getenv("ADMIN_SESSION_SECRET"),
 	}
 
 	if cfg.DatabaseURL == "" {

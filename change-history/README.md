@@ -4,4 +4,8 @@ One folder per tagged version, each holding a full snapshot of the root `README.
 
 | Version | Snapshot |
 |---|---|
+| v1.4.0 | [README.md](./v1.4.0/README.md) |
+| v1.3.0 | [README.md](./v1.3.0/README.md) |
+| v1.2.0 | [README.md](./v1.2.0/README.md) |
+| v1.1.0 | [README.md](./v1.1.0/README.md) |
 | v1.0.0 | [README.md](./v1.0.0/README.md) |

@@ -134,6 +134,7 @@ type ExerciseDTO struct {
 	Type       string              `json:"type"`
 	Prompt     string              `json:"prompt"`
 	ArabicText string              `json:"arabic_text,omitempty"`
+	AudioURL   string              `json:"audio_url,omitempty"`
 	Options    []ExerciseOptionDTO `json:"options,omitempty"`
 }
 
@@ -176,7 +177,7 @@ func (s *ContentService) GetLessonDetail(ctx context.Context, userID, lessonID s
 
 	detail := &LessonDetail{ID: lesson.ID, Title: lesson.Title, XPReward: lesson.XPReward}
 	for _, e := range exercises {
-		dto := ExerciseDTO{ID: e.ID, Type: string(e.Type), Prompt: e.Prompt, ArabicText: e.ArabicText}
+		dto := ExerciseDTO{ID: e.ID, Type: string(e.Type), Prompt: e.Prompt, ArabicText: e.ArabicText, AudioURL: e.AudioURL}
 		for _, o := range optionsByExercise[e.ID] {
 			dto.Options = append(dto.Options, ExerciseOptionDTO{ID: o.ID, OptionText: o.OptionText})
 		}

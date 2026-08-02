@@ -2,7 +2,7 @@
 
 A Duolingo-style app for learning the words of the Qur'an. Go backend + React Native (Expo) mobile app, in one monorepo.
 
-**Current version: v1.4.0** — see [CHANGELOG.md](./CHANGELOG.md) for what changed and [/change-history](./change-history) for a full README snapshot at every release.
+**Current version: v1.1.0** — see [CHANGELOG.md](./CHANGELOG.md) for what changed and [/change-history](./change-history) for a full README snapshot at every release.
 
 ---
 
@@ -26,7 +26,7 @@ A Duolingo-style app for learning the words of the Qur'an. Go backend + React Na
 
 ## What the app does
 
-A learner works through a Duolingo-style skill tree (**125 Words of the Qur'an** — the 125 most frequent words in the Qur'an, together accounting for roughly half the text). Each skill unlocks a 5-word lesson; each lesson is a set of multiple-choice exercises, graded by the server. Correct lessons earn XP, wrong answers cost a heart, and daily activity builds a streak — the standard gamification loop, implemented with one hard rule: **the client never grades itself**. See [Gamification rules](#gamification-rules).
+A learner works through a Duolingo-style skill tree (**125 Words of the Qur'an** — the 125 most frequent words in the Qur'an, together accounting for roughly half the text). Each skill unlocks a 5-word lesson; each lesson is 5 exercises (multiple-choice or type-the-translation), graded by the server. Correct lessons earn XP, wrong answers cost a heart, and daily activity builds a streak — the standard gamification loop, implemented with one hard rule: **the client never grades itself**. See [Gamification rules](#gamification-rules).
 
 ## Repository layout
 
@@ -45,7 +45,7 @@ Always use `make <target>` (`make backend-run`, `make frontend-start`, `make dev
 - **Backend**: Go, [chi](https://github.com/go-chi/chi) router (`backend/internal/handler/router.go`). PostgreSQL (Supabase-hosted) is the source of truth.
 - **DB access**: hand-written parameterized SQL via `pgx/v5` in `backend/internal/repository/` (no ORM, no codegen). `golang-migrate` for schema migrations (`backend/internal/db/migrations`).
 - **Background jobs**: not yet wired up (Redis/`asynq` documented as a future addition). XP/streak/hearts updates happen synchronously inside the request that triggers them — fine at current scale.
-- **Object storage**: per-question audio is a plain public URL (`exercises.audio_url`) pointing at wherever the operator hosts the clip (e.g. a public Supabase Storage bucket) — the backend stores/returns the URL only, never uploads, transcodes, or proxies the file. A full S3-compatible upload pipeline (server-side upload from the admin panel, presigned URLs) is still not implemented; binary assets should never go through the API process or Postgres either way.
+- **Object storage**: not yet implemented — no audio/image lesson assets in the seeded course yet. When added, binary assets go through an S3-compatible bucket, never through the API process or Postgres.
 - **Frontend**: React Native, Expo SDK 54, TypeScript.
 - **Server state**: TanStack Query (`@tanstack/react-query`).
 - **Client state**: Zustand (`mobile/src/store/authStore.ts`).
@@ -66,11 +66,7 @@ All of the following is enforced **server-side only**, inside `backend/internal/
 
 ## Course content
 
-Seeded by `make backend-seed` (`backend/internal/db/seed/`), upsert-based so it's safe to re-run. Course: **"125 Words of the Qur'an"** (`code: quran-125`) — 25 themed skills × 5 words each, sourced from *"125 Words of the Qur'an"* by Dr. Abdulazeez Abdulraheem (Understand Al-Qur'an Academy). Every word is written with full harakat (tashkeel/diacritics) for readability. Each word becomes one multiple-choice exercise; Arabic text is *display-only* — grading always compares against the English answer, never the Arabic string.
-
-Beyond the seeded course, operators can add more multiple-choice questions to any lesson through the admin panel's [question management](#admin-panel) page — one at a time or in bulk via CSV — without touching the seed data or redeploying.
-
-**Audio**: each question can carry an optional pronunciation-clip URL (`exercises.audio_url`). The backend treats it as an opaque string — it doesn't upload, transcode, or serve the file itself (per the security baseline: binary assets are never proxied through the API process). Host clips as public files anywhere and paste the link into the admin question form/CSV; `AUDIO_BASE_URL` in `backend/.env.example` documents the simplest option (a public Supabase Storage bucket, since a Supabase project is already in use for Postgres). A blank or unreachable URL is a normal "no clip recorded yet" state, not an error, on both the admin page and in the mobile app.
+Seeded by `make backend-seed` (`backend/internal/db/seed/`), upsert-based so it's safe to re-run. Course: **"125 Words of the Qur'an"** (`code: quran-125`) — 25 themed skills × 5 words each, sourced from *"125 Words of the Qur'an"* by Dr. Abdulazeez Abdulraheem (Understand Al-Qur'an Academy). Every word is written with full harakat (tashkeel/diacritics) for readability. Each word becomes one exercise (alternating multiple-choice / translate); Arabic text is *display-only* — grading always compares against the English answer, never the Arabic string.
 
 The `Word` struct also carries `Transliteration`, `Root` (Arabic trilateral root), `Type` (noun/verb/particle), and `Occurrences` (frequency in the Qur'an) as reference metadata. Not written to the DB by the current seeder — kept in the dataset so future exercise types (e.g. root-family drills) don't require re-deriving the data.
 
@@ -86,7 +82,7 @@ REST + JSON. Base URL is whatever `APP_PORT` is bound to (default `:8080`).
 | `POST` | `/auth/refresh` | none | `{refresh_token}` → `{tokens}` (rotates the refresh token). Rate-limited 10/min/IP. |
 | `GET` | `/me` | Bearer JWT | current user's profile/stats |
 | `GET` | `/courses/{code}` | Bearer JWT | full skill/lesson tree with per-item lock status for this user |
-| `GET` | `/lessons/{id}` | Bearer JWT | exercises for one lesson (each with `audio_url` if a clip exists), **correct answers withheld** |
+| `GET` | `/lessons/{id}` | Bearer JWT | exercises for one lesson, **correct answers withheld** |
 | `POST` | `/lessons/{id}/submit` | Bearer JWT | `{idempotency_key, answers[]}` → grades, awards XP, updates hearts/streak. Rate-limited 30/min/IP. |
 | `GET` | `/leaderboard/weekly` | Bearer JWT | top 50 users by this week's XP |
 | `GET` | `/admin/login` | none | admin sign-in page |
@@ -95,12 +91,6 @@ REST + JSON. Base URL is whatever `APP_PORT` is bound to (default `:8080`).
 | `POST` | `/admin/logout` | admin session | clears the session cookie |
 | `POST` | `/admin/users/refill-all` | admin session | refill every user's hearts to full |
 | `POST` | `/admin/users/{id}/refill` | admin session | refill one user's hearts to full |
-| `GET` | `/admin/questions` | admin session | question management — lesson picker, add/import forms, draft preview list |
-| `POST` | `/admin/questions/new` | admin session | create one draft question from a form |
-| `POST` | `/admin/questions/import` | admin session | bulk-create draft questions from an uploaded CSV |
-| `POST` | `/admin/questions/{id}/update` | admin session | overwrite a draft's prompt/Arabic text/options |
-| `POST` | `/admin/questions/{id}/approve` | admin session | publish a draft — makes it visible to the app |
-| `POST` | `/admin/questions/{id}/delete` | admin session | reject/remove a draft |
 
 `Authorization: Bearer <access_token>` is required on every JWT-protected route. Access tokens are short-lived (`JWT_ACCESS_TTL`, default 15m); the mobile client transparently refreshes on 401 using the refresh token (`JWT_REFRESH_TTL`, default 720h/30d).
 
@@ -113,28 +103,13 @@ A small, server-rendered HTML page at `/admin` (Go `html/template`, no JS framew
 - Not shipped in the mobile app binary — it's a backend-only surface, so nothing admin-capable ever ships inside the public app.
 - Known MVP limitation: one shared operator credential, no audit log of who refilled what. Fine for a single-developer project; would need real per-admin accounts and an audit trail before handing admin access to more than one person.
 
-### Question management (`/admin/questions`)
-
-Lets an operator add multiple-choice questions to any lesson without touching the seed data, with a draft → preview → approve workflow so nothing reaches the app unreviewed:
-
-- **Add one question** via a form (prompt, Arabic text with harakat, 2-4 options, check all that are correct), or **bulk-import a CSV** (`prompt,arabic_text,option_1..option_4,correct_option` — UTF-8, so Arabic pastes in as-is; `correct_option` is the 1-based `option_N` number(s) that are correct, `;`-separated for more than one, e.g. `1;3`). Bad rows are skipped and reported individually rather than failing the whole import.
-- **More than one option can be marked correct.** Arabic words often carry a general sense and one or more specific ones (e.g. الْحَمْد ≈ "all praise and thanks" / "praise" / "thanks"), so a question isn't limited to one right answer — the learner is graded correct if they pick *any* option flagged correct. `exercise_options.is_correct` has never had a uniqueness constraint; only the admin-side validation previously required exactly one, and that's what changed.
-- Every question created this way starts as a **draft** (`exercises.status = 'draft'`) — invisible to `GET /lessons/{id}` and to lesson grading, which both only ever see `status = 'approved'` rows.
-- The page renders each draft as a **preview styled like the actual Android lesson screen** (same layout/colors as `mobile/src/screens/LessonScreen.tsx`), with every correct option highlighted for the operator's eyes only, so they can proof the question exactly as a learner would see it.
-- An operator can **edit** any draft inline (fix a typo, add/swap correct answers) before publishing, or **delete** it outright. Clicking **Approve** flips it to `approved`, making it live immediately — no redeploy, no reseed.
-- **Existing questions**: below the drafts, an "Existing questions" list shows every already-**approved**/live question for the selected lesson in the same Android-style preview, each with its own **Edit** form — the same `UpdateQuestion` path used for drafts, just without the approve/delete step, so changes to live questions take effect immediately.
-- Only multiple-choice questions are supported anywhere in the app (see [Data model](#data-model)) — the form and CSV importer don't offer any other exercise type.
-- **Audio**: an optional "Audio URL" field (also an optional `audio_url` CSV column) on every question, plus a **🔊 Play sound** button in the preview so the operator can check a clip without leaving the admin page. The backend never fetches, validates, or proxies this URL — it's just stored and handed back as-is; see [Course content](#course-content) for how to host clips.
-
-
-
 ## Data model
 
 Postgres, via `golang-migrate` migrations in `backend/internal/db/migrations/`:
 
 - `users` — profile + gamification state (`total_xp`, `hearts`, `hearts_refill_at`, `current_streak`, `longest_streak`, `last_activity_date`).
 - `refresh_tokens` — hashed, rotated, revocable.
-- `courses` → `skills` → `lessons` → `exercises` → `exercise_options` — the content tree. `exercises.type` is always `multiple_choice` (the only supported exercise type); `correct_answer` and `exercise_options.is_correct` are never sent to the client. An exercise can have **more than one** option with `is_correct = true` (a word can have multiple valid meanings) — `exercises.correct_answer` stores all of them joined with `" / "` for display in post-lesson results. `exercises.status` is `draft` or `approved` — only `approved` rows are ever served to or graded for the mobile app; `draft` is how admin-authored questions stay invisible until reviewed (see [Admin panel](#admin-panel)). `exercises.audio_url` is an optional plain-text URL to a pronunciation clip (`NOT NULL DEFAULT ''`, sent to the client as `audio_url` only when non-empty) — never validated or fetched server-side.
+- `courses` → `skills` → `lessons` → `exercises` → `exercise_options` — the content tree. `exercises.type` is `multiple_choice` or `translate`; `correct_answer` and `exercise_options.is_correct` are never sent to the client.
 - `user_lesson_completions` — one row per successful submission, unique on `(user_id, idempotency_key)`.
 - `xp_transactions` — an XP ledger entry per completion (currently only reason: `lesson_complete`).
 
@@ -157,7 +132,6 @@ types/      TypeScript mirror of the backend JSON contracts
 - **Token storage**: `expo-secure-store` (Keychain/Keystore-backed), never AsyncStorage.
 - **Offline-first**: since `GET /lessons/{id}` withholds correct answers by design, the client *cannot* grade a lesson locally, online or offline. So the offline path is "queue the full answer set, defer to a 'saved offline, will sync' results screen" — never a locally-computed score. Queued submissions reuse the same `idempotency_key` generated at lesson start, so a submission that's retried after coming back online can't double-award XP even if the original request actually reached the server before the connection dropped. `useSyncPendingSubmissions` flushes the queue on every connectivity-regained event (`@react-native-community/netinfo`) and on app start.
 - **Course/lesson data**: cached to SQLite on every successful fetch; if a fetch fails, the hook falls back to the last cached copy before rethrowing.
-- **Audio**: `expo-audio` (`utils/sound.ts`'s `playAudioUrl`) auto-plays a question's `audio_url` every time it's shown (`LessonScreen.tsx`), plus a **🔊 Hear again** button to replay it on demand. A missing or unreachable clip fails completely silently — no error shown, no crash — since most content simply has no recording yet.
 - Configure `EXPO_PUBLIC_API_URL` in `mobile/.env` (see `mobile/.env.example`) — a physical device needs your machine's LAN IP (`ipconfig getifaddr en0` on macOS), which changes whenever you switch Wi-Fi networks.
 
 ## Security baselines (non-negotiable)
@@ -197,10 +171,10 @@ Full env var reference: `backend/.env.example`, `mobile/.env.example`.
 
 ## Versioning & documentation process
 
-- **Semantic Versioning** (`MAJOR.MINOR.PATCH`). Current: **v1.4.0**.
+- **Semantic Versioning** (`MAJOR.MINOR.PATCH`). Current: **v1.1.0**.
 - **[CHANGELOG.md](./CHANGELOG.md)** — [Keep a Changelog](https://keepachangelog.com/) format: one dated entry per release, grouped into Added/Changed/Fixed/Removed. This is the fast, diffable answer to "what changed and when."
 - **[/change-history](./change-history)** — a full copy of `README.md` saved at every tagged version (`change-history/v1.0.0/README.md`, …). CHANGELOG.md tells you *what* changed; a change-history snapshot lets you see the *entire* app description as it stood at that point, without digging through git history or reconstructing state from diffs.
-- **Git tags** (`v1.0.0`, `v1.1.0`, `v1.2.0`, `v1.3.0`, `v1.4.0`, …) mark the commit each snapshot corresponds to.
+- **Git tags** (`v1.0.0`, `v1.1.0`, …) mark the commit each snapshot corresponds to.
 
 **Rule for future changes**: any change that affects app behavior, API contracts, gamification rules, or setup steps must update `README.md` and add a `CHANGELOG.md` entry in the same change — not as a follow-up. This is written into `.claude/skills/golang-backend/SKILL.md` and `.claude/skills/react-native-frontend/SKILL.md` so it isn't dependent on remembering to do it by hand.
 

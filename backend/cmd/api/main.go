@@ -35,17 +35,22 @@ func main() {
 	leaderboardService := service.NewLeaderboardService(pool)
 	adminService := service.NewAdminService(pool)
 
+	adminAuth := handler.AdminAuth{
+		Username:      cfg.AdminUsername,
+		PasswordHash:  cfg.AdminPasswordHash,
+		SessionSecret: cfg.AdminSessionSecret,
+	}
+	if adminAuth.Username == "" || adminAuth.PasswordHash == "" || adminAuth.SessionSecret == "" {
+		log.Println("admin panel disabled: set ADMIN_USERNAME, ADMIN_PASSWORD_HASH, and ADMIN_SESSION_SECRET to enable /admin")
+	}
+	secureAdminCookie := cfg.Env == "production"
+
 	handlers := &handler.Handlers{
 		Auth:        handler.NewAuthHandler(authService, pool),
 		Content:     handler.NewContentHandler(contentService),
 		Lesson:      handler.NewLessonHandler(lessonService),
 		Leaderboard: handler.NewLeaderboardHandler(leaderboardService),
-		Admin:       handler.NewAdminHandler(adminService),
-	}
-
-	adminAuth := handler.AdminAuth{Username: cfg.AdminUsername, PasswordHash: cfg.AdminPasswordHash}
-	if adminAuth.Username == "" || adminAuth.PasswordHash == "" {
-		log.Println("admin panel disabled: set ADMIN_USERNAME and ADMIN_PASSWORD_HASH to enable /admin")
+		Admin:       handler.NewAdminHandler(adminService, adminAuth.Username, adminAuth.PasswordHash, adminAuth.SessionSecret, secureAdminCookie),
 	}
 
 	router := handler.NewRouter(handlers, authService, adminAuth)
